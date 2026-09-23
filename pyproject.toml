@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "payment-integrity-check"
+version = "0.1.0"
+description = "Local, deterministic review of payment integrity risks in Python projects"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{name = "Lívia Clarete"}]
+dependencies = []
+
+[project.scripts]
+payment-integrity-check = "payment_integrity_check.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["payment_integrity_check*"]
