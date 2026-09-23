@@ -102,6 +102,18 @@ def pay():
             (nested / "test.py").write_text("import stripe\ndef pay():\n    stripe.Charge.create(amount=1)\n")
             self.assertEqual(scan(directory), [])
 
+    def test_no_python_files_is_not_reported_as_passing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "Gemfile").write_text("source 'https://rubygems.org'\n")
+            output = root / "report.html"
+            self.assertEqual(main(["scan", directory, "--format", "html", "--output", str(output)]), 3)
+            self.assertIn("No Python files were analyzed", output.read_text())
+            self.assertIn("Result: not applicable", output.read_text())
+            self.assertNotIn("No matching pattern observed", output.read_text())
+            text_report = render_text([], [], 0)
+            self.assertIn("checks were not run", text_report)
+
     def test_legacy_stripe_wrapper_and_python2_skip(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

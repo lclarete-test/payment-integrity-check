@@ -18,6 +18,8 @@ def _by_rule(findings: list[Finding]) -> dict[str, list[Finding]]:
 
 
 def _summary(findings: list[Finding], files_analyzed: int | None) -> str:
+    if files_analyzed == 0:
+        return "No Python files were analyzed. The three checks were not run."
     categories = len({f.rule_id for f in findings})
     sites = len({(f.path, f.line) for f in findings})
     files = f" across {files_analyzed} Python file(s)" if files_analyzed is not None else ""
@@ -30,6 +32,9 @@ def render_text(findings: list[Finding], skipped: list[str] | None = None, files
              "A match is a code review prompt, not a confirmed incident or vulnerability.", ""]
     if skipped:
         lines.extend(["Coverage limits:", *(f"  - {item}" for item in skipped), ""])
+    if files_analyzed == 0:
+        lines.append("Result: not applicable. Provide a Python project to evaluate these rules.")
+        return "\n".join(lines) + "\n"
     for rule in RULE_TEMPLATES:
         matches = _by_rule(findings)[rule.id]
         lines.extend([f"{rule.id} — {rule.title}: {len(matches)} match(es)" if matches else
@@ -53,7 +58,7 @@ def render_html(findings: list[Finding], skipped: list[str] | None = None,
     escape = html.escape
     cards = []
     grouped = _by_rule(findings)
-    for rule in RULE_TEMPLATES:
+    for rule in (() if files_analyzed == 0 else RULE_TEMPLATES):
         matches = grouped[rule.id]
         heading = f"<h2>{escape(rule.id)} · {escape(rule.title)}</h2>"
         status = (f"<span class=\"tag\">{len(matches)} match(es)</span>" if matches else
@@ -82,6 +87,8 @@ def render_html(findings: list[Finding], skipped: list[str] | None = None,
                 + ("<p><strong>Files skipped:</strong> " + "; ".join(escape(s) for s in skipped) + "</p>" if skipped else "")
                 + "<p>The analyzer reads code locally and does not execute payment requests. "
                   "It cannot establish production impact or prove the absence of other risks.</p></section>")
+    if files_analyzed == 0:
+        cards.append("<article><h2>Result: not applicable</h2><p>Provide a Python project to evaluate these rules.</p></article>")
     return ("<!doctype html><html lang=\"en\"><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             "<title>Payment integrity review</title><style>"
@@ -133,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
         content = {"text": render_text, "html": render_html, "sarif": render_sarif,
                    "json": lambda fs: json.dumps({"findings": [f.to_dict() for f in fs],
                                                   "checks": [{"id": rule.id, "title": rule.title,
+                                                              "status": "not_run" if report.files_analyzed == 0 else
+                                                                        ("matched" if any(f.rule_id == rule.id for f in fs) else "not_observed"),
                                                               "matches": sum(f.rule_id == rule.id for f in fs)}
                                                              for rule in RULE_TEMPLATES],
                                                   "files_analyzed": report.files_analyzed,
@@ -147,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
             args.output.write_text(output, encoding="utf-8")
         else:
             sys.stdout.write(output)
-        return 0
+        return 3 if report.files_analyzed == 0 else 0
     except (OSError, ValueError) as exc:
         print(f"payment-integrity-check: {exc}", file=sys.stderr)
         return 2

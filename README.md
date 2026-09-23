@@ -73,6 +73,8 @@ file and line, describes a *conditional* impact, proposes a test and possible
 fix, and names what static analysis cannot establish. A rule without matches
 is labeled **No matching pattern observed**, never **Passed**. The report also
 lists files it could not parse, including some older Python 2 files.
+If a project has no analyzable Python files, the report says **not applicable**
+and the CLI exits with status `3`; it does not imply that the rules passed.
 
 The English wording lives in
 [`payment_integrity_check/report_templates.py`](payment_integrity_check/report_templates.py).
